@@ -4,7 +4,7 @@ import cv2
 
 class ProcessHeightmapMixin:
 
-    def reshape_noise_peak(arr, w=9, max_target=0.3, slope_control=5.5, bit8=True):
+    def reshape_noise_peak(self, arr, w=9, max_target=0.3, slope_control=5.5, bit8=True):
         """Transform a noise image with significant variations in height
            so that it becomes smooth. Supports both 8-bit and 16-bit images.
         """
@@ -32,19 +32,21 @@ class ProcessHeightmapMixin:
 
         result[is_zero_mask] = 0.
         return result
-        # cv2.imwrite('result_img16_20260908001113.png', result_16bit)
 
+    def create_bw_texture_map(self, arr, threshold=0.0, blur=9):
+        """Create a binary texture map in which areas with a luminance greater
+           than the threshold are set to white.
+            Args:
+                arr (numpu.ndarray): A noise image.
+                blur (int):
+                    Specify None or an odd number.
+                    Negative values are not allowed.
+        """
+        h, w = arr.shape[:2]
+        img = np.zeros((h, w, 3), dtype=np.uint8)
+        img[arr > threshold] = 255
 
-class HeightmapProcessor(ProcessHeightmapMixin):
+        if blur:
+            img = cv2.GaussianBlur(img, (9, 9), 0)
 
-    def __init__(self, file_path):
-        pass
-
-
-    def reshape_peak(self, file_path, w=9, max_target=0.3, slope_control=5.5, bit8=True):
-        arr = cv2.imread(file_path) if bit8 else \
-            cv2.imread(file_path, cv2.IMREAD_UNCHANGED)
-        result = self.reshape_noise_peak(arr, w, max_target, slope_control, bit8)
-
-        
-        
+        return img
