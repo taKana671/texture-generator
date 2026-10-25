@@ -3,9 +3,9 @@ import random
 import numpy as np
 
 from .cloud import Cloud
-from utils.color_gradient import SkyColor
-from texture_generator.utils.noise_process_mixin import NoiseProcessMixin
-from utils.output_image import make_dir, output
+from ..utils.color_gradient import SkyColor
+from ..utils.noise_process_mixin import NoiseProcessMixin
+from ..utils.output_image import make_dir, output
 
 
 from noise import SimplexNoise
