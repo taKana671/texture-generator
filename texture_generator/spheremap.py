@@ -4,10 +4,10 @@ import cv2
 import numpy as np
 
 from .cloud import Cloud
-from utils.color_gradient import SkyColor
-from utils.output_image import make_dir, output
 from noise import Fractal3D
 from noise import SimplexNoise
+from ..utils.color_gradient import SkyColor
+from ..utils.output_image import make_dir, output
 
 
 class SphereMap:
