@@ -11,11 +11,11 @@ def make_dir(name, parent='.'):
     return path
 
 
-def output(arr, stem, parent='.', with_suffix=True):
+def output(arr, stem, parent='.', with_suffix=True, file_extension='png'):
     if with_suffix:
         now = datetime.now()
         stem = f'{stem}_{now.strftime("%Y%m%d%H%M%S")}'
 
-    file_path = f'{parent}/{stem}.png'
+    file_path = f'{parent}/{stem}.{file_extension}'
     # file_name = f'{stem}_{now.strftime("%Y%m%d%H%M%S")}.{ext}'
     cv2.imwrite(file_path, arr)
