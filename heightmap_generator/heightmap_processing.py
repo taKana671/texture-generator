@@ -50,3 +50,27 @@ class ProcessHeightmapMixin:
             img = cv2.GaussianBlur(img, (9, 9), 0)
 
         return img
+
+    def generate_contour_vertices(self, arr):
+        """Detect the coordinates of the outlines of white regions
+           in an image with a black background
+            Args:
+               arr (numpy.ndarray) Grayscale (1-channel) image
+        """
+        _, thresh = cv2.threshold(arr, 127, 255, cv2.THRESH_BINARY)
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        for contour in contours:
+            if (m := cv2.moments(contour))['m00'] == 0:
+                continue
+
+            cx = (m['m10'] / m['m00'])
+            cy = (m['m01'] / m['m00'])
+            center = np.array([cx, cy])
+
+            vertices = contour.reshape(-1, 2)
+
+            if cv2.contourArea(contour, oriented=True) >= 0:
+                vertices = vertices[::-1]
+
+            yield center, vertices
