@@ -5,7 +5,7 @@ import numpy as np
 from .cloud import Cloud
 from ..utils.color_gradient import SkyColor
 from ..utils.noise_process_mixin import NoiseProcessMixin
-from ..utils.output_image import make_dir, output
+from ..utils.output_image import make_dir_name, output
 
 
 from noise import SimplexNoise
@@ -110,7 +110,7 @@ class CubeMap(NoiseProcessMixin):
         self.generate_images(img, sky_color, intensity)
 
     def generate_images(self, img, sky_color, intensity):
-        parent = make_dir('skybox')
+        parent = make_dir_name('skybox')
         s_bgr, e_bgr = sky_color.rgb_to_bgr()
 
         for i in range(6):

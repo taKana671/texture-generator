@@ -7,7 +7,7 @@ from .cloud import Cloud
 from noise import Fractal3D
 from noise import SimplexNoise
 from ..utils.color_gradient import SkyColor
-from ..utils.output_image import make_dir, output
+from ..utils.output_image import make_dir_name, output
 
 
 class SphereMap:
@@ -171,7 +171,7 @@ class SphereMap:
         return img
 
     def generate_images(self, img, intensity, sky_color):
-        parent = make_dir('skybox')
+        parent = make_dir_name('skybox')
         s_bgr, _ = sky_color.rgb_to_bgr()
 
         h, _ = img.shape[:2]

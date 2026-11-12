@@ -4,8 +4,8 @@ import cv2
 import numpy as np
 
 from texture_generator.utils.noise_process_mixin import NoiseProcessMixin
-from ..utils.output_image import output
-from ..utils.color_gradient import SkyColor  # get_gradient_3d
+from texture_generator.utils.output_image import output
+from texture_generator.utils.color_gradient import SkyColor  # get_gradient_3d
 from ..mask.linear_gradient_generator import LinearGradient
 
 from noise import ValueNoise
