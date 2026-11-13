@@ -1,1 +1,1 @@
-from .fractal_noise_blending import PerlinNoiseBlending
+from .fractal_noise_blending import PerlinNoiseBlending, SimplexNoiseBlending
