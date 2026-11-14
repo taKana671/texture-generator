@@ -63,8 +63,11 @@ class NoiseProcessMixin:
         result[is_zero_mask] = 0.
         return result
 
-    def clip_array(self, arr, bit8=True):
-        if bit8:
-            return np.clip(arr * 255, a_min=0, a_max=255).astype(np.uint8)
-        else:
-            return np.clip(arr * 65535, a_min=0, a_max=65535).astype(np.uint16)
+    def clip_array(self, arr, bit=8):
+        match bit:
+            case 8:
+                return np.clip(arr * 255, a_min=0, a_max=255).astype(np.uint8)
+            case 16:
+                return np.clip(arr * 65535, a_min=0, a_max=65535).astype(np.uint16)
+            case _:
+                raise ValueError(f'Invalid bit: {bit}. Specify 8 or 16.')
