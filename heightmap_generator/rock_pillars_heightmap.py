@@ -166,7 +166,7 @@ class VoronoiRockPillarsHeightmap(VoronoiNoiseRockPillars):
 
 
 class RoundedVoronoiRockPillarsHeightmap(VoronoiNoiseRockPillars):
-    """A class for generating terrain heightmap like rock pillars dynamically from voronoi noise.
+    """A class for generating terrain heightmap like rock pillars dynamically from rounded voronoi noise.
         Args:
             grid (int): The number of grids. Default is 4.
             size (int): Image size. Images with the same width and height are generated. Default is 256.
