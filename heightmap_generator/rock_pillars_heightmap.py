@@ -1,4 +1,5 @@
 import random
+from abc import ABC, abstractmethod
 
 import cv2
 import numpy as np
@@ -12,6 +13,10 @@ class RockPillarsHeightmap(NoiseProcessMixin):
 
     """A class for generating terrain heightmap like rock pillars.
         Args:
+            file_path (str or None):
+                A file pash of 8-bit, single-channel (binary) source image.
+                This process is generally intended for images with the same width and height.
+                Since the class is inherited, None is allowed.
             cliff_area (float):
                 Specify how far from the edge of the Voronoi cell the gradient should extend.
                 Default is 0.4.
@@ -26,7 +31,8 @@ class RockPillarsHeightmap(NoiseProcessMixin):
 
     rock_heights = [0.8, 0.9, 1.0]
 
-    def __init__(self, cliff_area=0.4, random_height=False, blur=11, exclude_edge_cells=True):
+    def __init__(self, file_path=None, cliff_area=0.4, random_height=False, blur=11, exclude_edge_cells=True):
+        self.file_path = file_path
         self.cliff_area = cliff_area
         self.random_height = random_height
         self.ksize = self.convert_to_ksize(blur)
@@ -78,7 +84,7 @@ class RockPillarsHeightmap(NoiseProcessMixin):
             max_val = 1.0
 
             if self.random_height:
-                max_val = random.choice(RockPillarsHeightmap.rock_heights)
+                max_val = random.choice(self.rock_heights)
 
             cushion = np.clip(cell_dists / flat_threshold, 0.0, max_val)
             heightmap[y_indices, x_indices] = cushion
@@ -88,15 +94,9 @@ class RockPillarsHeightmap(NoiseProcessMixin):
 
         return heightmap
 
-    def output_heightmap(self, file_path, parent='.', with_suffix=True, extension='png', bit8=True):
-        """Create a heightmap from a Voronoi noise image file.
-            Arges:
-                file_path (str):
-                    A file pash of 8-bit, single-channel (binary) source image.
-                    This process is generally intended for images with the same width and height.
-        """
-        if (img := cv2.imread(file_path, cv2.IMREAD_UNCHANGED)) is None:
-            raise FileNotFoundError(f'Not found or could not be read: {file_path}')
+    def output_heightmap(self, parent='.', with_suffix=True, extension='png', bit8=True):
+        if (img := cv2.imread(self.file_path, cv2.IMREAD_UNCHANGED)) is None:
+            raise FileNotFoundError(f'Not found or could not be read: {self.file_path}')
 
         if img.ndim != 2:
             raise ValueError(f"Requires a grayscale noise image. shape: {img.shape}")
@@ -114,18 +114,41 @@ class RockPillarsHeightmap(NoiseProcessMixin):
         output_image.output(heightmap, filename, parent, with_suffix, extension)
 
 
-class VoronoiNoiseRockPillars(RockPillarsHeightmap):
+class VoronoiNoiseRockPillars(RockPillarsHeightmap, ABC):
 
     def __init__(self, grid, size, t, cliff_area, random_height, blur, exclude_edge_cells):
-        super().__init__(cliff_area, random_height, blur, exclude_edge_cells)
+        super().__init__(
+            cliff_area=cliff_area,
+            random_height=random_height,
+            blur=blur,
+            exclude_edge_cells=exclude_edge_cells
+        )
         self.grid = grid
         self.size = size
         self.t = t
+
+    @abstractmethod
+    def generate_noise(t):
+        """Specifies the elapsed time (t) that serves as the seed and returns a Numpy.ndarray
+           of 8-bit and single-channel (binary) with values in the range of 0.0 to 1.0.
+        """
+        pass
 
     def output_heightmap(self, parent='.', with_suffix=True, extension='png', bit8=True):
         bit = 8 if bit8 else 16
         heightmap = self.create_heightmap(bit)
         self.write_to_file(heightmap, bit, parent, with_suffix, extension)
+
+    def create_heightmap(self, bit=None):
+        t = self.t if self.t is not None else random.uniform(0, 1000)
+        noise_arr = self.generate_noise(t)
+        noise_arr = self.clip_array(noise_arr, bit=8)
+        heightmap_arr = self.generate_heightmap(noise_arr)
+
+        if bit is None:
+            return heightmap_arr
+
+        return self.clip_array(heightmap_arr, bit)
 
 
 class VoronoiRockPillarsHeightmap(VoronoiNoiseRockPillars):
@@ -145,24 +168,17 @@ class VoronoiRockPillarsHeightmap(VoronoiNoiseRockPillars):
             blur (int):
                 Specify None or an odd number. Negative values are not allowed. Default is 11.
             exclude_edge_cells (bool):
-                If True, exclude Voronoi regions that are cut off at the edges of the image. Default is True
+                If True, exclude Voronoi regions that are cut off at the edges of the image. Default is True.
     """
 
     def __init__(self, grid=4, size=256, t=None, cliff_area=0.4,
                  random_height=False, blur=11, exclude_edge_cells=True):
         super().__init__(grid, size, t, cliff_area, random_height, blur, exclude_edge_cells)
 
-    def create_heightmap(self, bit=None):
+    def generate_noise(self, t):
         voronoi = VoronoiEdges(self.grid)
-        t = self.t if self.t is not None else random.uniform(0, 1000)
         noise_arr = voronoi.noise2(self.size, cell=1.0, edge=0.0, t=t)
-        noise_arr = self.clip_array(noise_arr, bit=8)
-        heightmap_arr = self.generate_heightmap(noise_arr)
-
-        if bit is None:
-            return heightmap_arr
-
-        return self.clip_array(heightmap_arr, bit)
+        return noise_arr
 
 
 class RoundedVoronoiRockPillarsHeightmap(VoronoiNoiseRockPillars):
@@ -191,14 +207,7 @@ class RoundedVoronoiRockPillarsHeightmap(VoronoiNoiseRockPillars):
         super().__init__(grid, size, t, cliff_area, random_height, blur, exclude_edge_cells)
         self.tp = tp
 
-    def create_heightmap(self, clipping=None):
+    def generate_noise(self, t):
         voronoi = VoronoiRoundEdges(self.grid)
-        t = self.t if self.t is not None else random.uniform(0, 1000)
         noise_arr = voronoi.noise2(self.size, cell=1.0, edge=0.0, tp=self.tp, t=t)
-        noise_arr = self.clip_array(noise_arr, bit=8)
-        heightmap_arr = self.generate_heightmap(noise_arr)
-
-        if clipping is None:
-            return heightmap_arr
-
-        return self.clip_array(heightmap_arr, clipping)
+        return noise_arr
