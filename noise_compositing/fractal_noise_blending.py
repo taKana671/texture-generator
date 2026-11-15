@@ -1,4 +1,5 @@
 import random
+from abc import ABC, abstractmethod
 
 import cv2
 import numpy as np
@@ -8,14 +9,23 @@ from texture_generator.utils import output_image
 from texture_generator.utils.noise_process_mixin import NoiseProcessMixin
 
 
-class FractalNoiseBlending(NoiseProcessMixin):
+class FractalNoiseBlending(NoiseProcessMixin, ABC):
 
-    def __init__(self, noise_intensity, gain, lacunarity, octaves, debug):
+    def __init__(self, noise_scale, t, noise_intensity, gain, lacunarity, octaves, debug):
+        self.noise_scale = noise_scale
+        self.t = t
         self.noise_intensity = noise_intensity
         self.gain = gain
         self.lacunarity = lacunarity
         self.octaves = octaves
         self.debug = debug
+
+    @abstractmethod
+    def blend(self, source):
+        """Takes either a file path or a Numpy.ndarray of grayscale noise images as an argument,
+           blends additional noise into them, and returns a Numpy.ndarray.
+        """
+        pass
 
     def blend_fractal(self, source_arr, noise_arr):
         source_max_val = np.iinfo(source_arr.dtype).max
@@ -34,12 +44,12 @@ class FractalNoiseBlending(NoiseProcessMixin):
         layered_arr = np.clip(layered_arr, 0, source_max_val).astype(source_dtype)
         return layered_arr
 
-    def get_array(self, source):
+    def get_source_array(self, source):
         match source:
             case str():
                 if (img := cv2.imread(source, cv2.IMREAD_UNCHANGED)) is None:
                     raise FileNotFoundError(f'Not found or could not be read: {source}')
-                return self.get_array(img)
+                return self.get_source_array(img)
             case np.ndarray(ndim=2, dtype=d) if d in (np.uint8, np.uint16):
                 return source
             case np.ndarray():
@@ -50,111 +60,12 @@ class FractalNoiseBlending(NoiseProcessMixin):
             case _:
                 raise ValueError(f'Invalid source value: {source}')
 
-    def write_array_to_file(self, arr, file_name, parent, with_suffix):
-        prefix = '8bit' if arr.dtype == np.uint8 else '16bit'
-        output_image.output(arr, f'{prefix}_{file_name}', parent, with_suffix)
-
-
-class PerlinNoiseBlending(FractalNoiseBlending):
-    """A class that blends fractal perlin noise into a grayscale noise image based on the proportion of white.
-
-        Args:
-            grid (int): The number of grid.
-            t (None or float): The elapsed time. If set to None, a random value is generated. Defalt is None.
-            noise_intensity (float):
-                Adjusting the elevation difference. The larger the value, the greater the elevation difference.
-                When processing 16-bit images, it's good to specify a fairly large value.
-            gain (float):
-                A coefficient that determines by how many times the
-                amplitude (strength or height of the effect) is multiplied for each octave shift.
-            lacunarity (float):
-                A multiplier that determines how many times the frequency (scale/resolution)
-                is increased with each octave step.
-            octaves (int):
-                A number indicating how many layers (or times) of noise are superimposed.
-            debug (bool): If True, an image of blended noise is output.
-    """
-
-    def __init__(self, grid=4, t=None, noise_intensity=100,
-                 gain=0.5, lacunarity=2.01, octaves=4, debug=False):
-        super().__init__(noise_intensity, gain, lacunarity, octaves, debug)
-        self.grid = grid
-        self.t = t
-
-    def output_image(self, source, parent='.', with_suffix=True):
-        arr = self.blend(source)
-        file_name = 'fractal_perlin_blending'
-        self.write_array_to_file(arr, file_name, parent, with_suffix)
-
-    def blend(self, source):
-        """Blend fractal simplex noise into the original image.
-            Args:
-                source (str or numpy.ndarray):
-                    Either the file path to a grayscale noise image or
-                    the noise image converted to an ndarray (before normalization).
-        """
-        source_arr = self.get_array(source)
-        size = max(source_arr.shape)
-
-        perlin = PerlinNoise()
-        noise_arr = perlin.fractal2(
-            size=size,
-            grid=self.grid,
-            t=self.t,
-            gain=self.gain,
-            lacunarity=self.lacunarity,
-            octaves=self.octaves,
-        )
-
-        return self.blend_fractal(source_arr, noise_arr)
-
-
-class SimplexNoiseBlending(FractalNoiseBlending):
-    """A class that blends fractal simplex noise into a grayscale noise image based on the proportion of white.
-
-        Args:
-            noise_scale (float): The higher the value, the gentler the slope becomes.
-            t (None or float): The elapsed time. If set to None, a random value is generated. Defalt is None.
-            noise_intensity (float):
-                Adjusting the elevation difference. The larger the value, the greater the elevation difference.
-                When processing 16-bit images, it's good to specify a fairly large value.
-            gain (float):
-                A coefficient that determines by how many times the
-                amplitude (strength or height of the effect) is multiplied for each octave shift.
-            lacunarity (float):
-                A multiplier that determines how many times the frequency (scale/resolution)
-                is increased with each octave step.
-            octaves (int):
-                A number indicating how many layers (or times) of noise are superimposed.
-            debug (bool): If True, an image of blended noise is output.
-    """
-
-    def __init__(self, noise_scale=200, t=None, noise_intensity=100,
-                 gain=0.5, lacunarity=2.01, octaves=4, debug=False):
-        super().__init__(noise_intensity, gain, lacunarity, octaves, debug)
-        self.noise_scale = noise_scale
-        self.t = t
-
-    def output_image(self, source, parent='.', with_suffix=True):
-        arr = self.blend(source)
-        file_name = 'fractal_simplex_blending'
-        self.write_array_to_file(arr, file_name, parent, with_suffix)
-
-    def blend(self, source):
-        """Blend fractal simplex noise into the original image.
-            Args:
-                source (str or numpy.ndarray):
-                    Either the file path to a grayscale noise image or
-                    the noise image converted to an ndarray (before normalization).
-        """
-        source_arr = self.get_array(source)
-        size = max(source_arr.shape)
-
+    def get_noise_array(self, noise_gen, source_arr):
+        h, w = source_arr.shape
         t = self.t if self.t is not None else random.uniform(0, 1000)
-        simplex = SimplexNoise()
 
         noise = Fractal2D(
-            simplex.snoise2,
+            noise_gen,
             gain=self.gain,
             lacunarity=self.lacunarity,
             octaves=self.octaves
@@ -162,8 +73,90 @@ class SimplexNoiseBlending(FractalNoiseBlending):
 
         noise_arr = np.array(
             [noise.fractal(x / self.noise_scale + t, y / self.noise_scale + t)
-                for y in range(size) for x in range(size)]
+                for y in range(h) for x in range(w)]
         )
 
-        noise_arr = noise_arr.reshape(size, size)
+        noise_arr = noise_arr.reshape(h, w)
+        return noise_arr
+
+    def output_image(self, source, parent='.', with_suffix=True, extension='png'):
+        arr = self.blend(source)
+        prefix = '8bit' if arr.dtype == np.uint8 else '16bit'
+        name = self.__class__.__name__
+        output_image.output(arr, f'{prefix}_{name}', parent, with_suffix, extension)
+
+
+class PerlinNoiseBlending(FractalNoiseBlending):
+    """A class that blends fractal perlin noise into a grayscale noise image based on the proportion of white.
+
+        Args:
+            noise_scale (float): The higher the value, the gentler the slope becomes. Default is 200.
+            t (None or float): The elapsed time. If set to None, a random value is generated. Defalt is None.
+            noise_intensity (float):
+                Adjusting the elevation difference. The larger the value, the greater the elevation difference.
+                When processing 16-bit images, it's good to specify a fairly large value. Default is 100.
+            gain (float):
+                A coefficient that determines by how many times the amplitude (strength or height of the effect)
+                is multiplied for each octave shift. Default is 0.5.
+            lacunarity (float):
+                A multiplier that determines how many times the frequency (scale/resolution) is increased
+                with each octave step. Default is 2.01.
+            octaves (int):
+                A number indicating how many layers (or times) of noise are superimposed. Default is 4.
+            debug (bool): If True, an image of blended noise is output. Default is False.
+    """
+
+    def __init__(self, noise_scale=200, t=None, noise_intensity=100,
+                 gain=0.5, lacunarity=2.01, octaves=4, debug=False):
+        super().__init__(noise_scale, t, noise_intensity, gain, lacunarity, octaves, debug)
+
+    def blend(self, source):
+        """Blend fractal simplex noise into the original image.
+            Args:
+                source (str or Numpy.ndarray): Either the file path or Numpy.ndarray of a grayscale noise image.
+            Returns:
+                Numpy.ndarray: The bit depth and size will be the same as those of the original image, “source.”
+        """
+        source_arr = self.get_source_array(source)
+        perlin = PerlinNoise()
+        noise_gen = perlin.pnoise2
+        noise_arr = self.get_noise_array(noise_gen, source_arr)
+        return self.blend_fractal(source_arr, noise_arr)
+
+
+class SimplexNoiseBlending(FractalNoiseBlending):
+    """A class that blends fractal simplex noise into a grayscale noise image based on the proportion of white.
+
+        Args:
+            noise_scale (float): The higher the value, the gentler the slope becomes. Default is 200.
+            t (None or float): The elapsed time. If set to None, a random value is generated. Defalt is None.
+            noise_intensity (float):
+                Adjusting the elevation difference. The larger the value, the greater the elevation difference.
+                When processing 16-bit images, it's good to specify a fairly large value. Default is 100.
+            gain (float):
+                A coefficient that determines by how many times the amplitude (strength or height of the effect)
+                is multiplied for each octave shift. Default is 0.5.
+            lacunarity (float):
+                A multiplier that determines how many times the frequency (scale/resolution) is increased
+                with each octave step. Default is 2.01.
+            octaves (int):
+                A number indicating how many layers (or times) of noise are superimposed. Default is 4.
+            debug (bool): If True, an image of blended noise is output. Default is False.
+    """
+
+    def __init__(self, noise_scale=200, t=None, noise_intensity=100,
+                 gain=0.5, lacunarity=2.01, octaves=4, debug=False):
+        super().__init__(noise_scale, t, noise_intensity, gain, lacunarity, octaves, debug)
+
+    def blend(self, source):
+        """Blend fractal simplex noise into the original image.
+            Args:
+                source (str or Numpy.ndarray): Either the file path or Numpy.ndarray of a grayscale noise image.
+            Returns:
+                Numpy.ndarray: The bit depth and size will be the same as those of the original image, “source.”
+        """
+        source_arr = self.get_source_array(source)
+        simplex = SimplexNoise()
+        noise_gen = simplex.snoise2
+        noise_arr = self.get_noise_array(noise_gen, source_arr)
         return self.blend_fractal(source_arr, noise_arr)
