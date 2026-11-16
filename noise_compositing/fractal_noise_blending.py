@@ -5,8 +5,8 @@ import cv2
 import numpy as np
 
 from noise import Fractal2D, PerlinNoise, SimplexNoise
-from texture_generator.utils import output_image
-from texture_generator.utils.noise_process_mixin import NoiseProcessMixin
+from ..utils import output_image
+from ..utils.noise_process_mixin import NoiseProcessMixin
 
 
 class FractalNoiseBlending(NoiseProcessMixin, ABC):

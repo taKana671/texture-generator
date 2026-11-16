@@ -7,7 +7,6 @@ from ..utils.color_gradient import SkyColor
 from ..utils.noise_process_mixin import NoiseProcessMixin
 from ..utils.output_image import make_dir_name, output
 
-
 from noise import SimplexNoise
 from noise import PerlinNoise
 from noise import Fractal3D
