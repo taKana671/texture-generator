@@ -4,9 +4,10 @@ import random
 from noise import PerlinNoise, SimplexNoise, Fractal2D
 from ..mask.radial_gradient_generator import RadialGradientMask
 from ..utils import output_image
+from ..utils.noise_process_mixin import NoiseProcessMixin
 
 
-class IslandHeightmap:
+class IslandHeightmap(NoiseProcessMixin):
     """A class to generate an island heightmap.
         Args:
             noise (function):
@@ -68,12 +69,7 @@ class IslandHeightmap:
         )
 
         arr = arr.reshape(self.size, self.size)
+        bit = 8 if bit8 else 16
+        arr = self.clip_array(arr, bit)
 
-        if bit8:
-            arr = np.clip(arr * 255, a_min=0, a_max=255).astype(np.uint8)
-            prefix = '8bit'
-        else:
-            arr = np.clip(arr * 65535, a_min=0, a_max=65535).astype(np.uint16)
-            prefix = '16bit'
-
-        output_image.output(arr, f'{prefix}_island_heightmap', parent, with_suffix)
+        output_image.output(arr, f'{bit}bit_island_heightmap', parent, with_suffix)
