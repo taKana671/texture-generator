@@ -199,8 +199,21 @@ class TexColorSpaceConverter:
 
         return img
 
-    def output_converted_image(self, src_img_path, ref_img_path, color_space='hsv', match_rate=1.0,
+    def output_converted_image(self, src_img_path, ref_img_path, color_space='hsv',
                                parent='.', with_suffix=True, file_extension='png'):
+        """Output texture image which color has been converted.
+            Args:
+                src_img_path (str): Source image file path.
+                ref_img_path (str):
+                    The file path of the image used as a reference when adjusting the color tone of the soure image.
+                color_space (str or int): Select from the following.
+                    * hsv or 1
+                    * hsv_robust or 2
+                    * lab or 3
+                parent (str): Destination directory for converted image file. Default is '.'
+                with_suffix (bool): If True is specified, the file name will include the date and time of output.
+                file_extension (str): File extension. Default is png.
+        """
         src_img = self.get_array(src_img_path)
         ref_img = self.get_array(ref_img_path)
 
