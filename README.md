@@ -59,8 +59,10 @@ classDiagram
       +\_\_init\_\_()
       +from_sfractal(cls)$
       +from_pfractal(cls)$
+      +output_heightmap()
+      +create_heightmap()
       +get_height()
-      +create_island_heightmap()
+      +generate_heightmap()
     }
 
     class Masking{
